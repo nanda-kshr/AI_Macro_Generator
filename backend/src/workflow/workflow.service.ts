@@ -27,7 +27,7 @@ export class WorkflowService {
 Convert the user natural language command into a single JSON object with "name", "description", "trigger", and "actions".
 
 ALLOWED ACTION TYPES:
-- "sound_mode": { "mode": "silent" | "vibrate" | "normal" | "dnd" }
+- "sound_mode": { "mode": "silent" | "vibrate" | "normal" | "dnd", "durationMinutes"?: <number> }
 - "open_app": { "appName": "<name>" }
 - "timer": { "durationMinutes": <number>, "label": "<label>" }
 - "notification": { "title": "<title>", "message": "<msg>" }
@@ -42,7 +42,7 @@ JSON:
   "description": "Enable silent mode, open timetable and start 50 minute timer on arriving at college",
   "trigger": { "type": "location", "description": "Arrive at College", "parameters": { "location": "College", "event": "arrival" } },
   "actions": [
-    { "type": "sound_mode", "title": "Enable Silent Mode", "parameters": { "mode": "silent" } },
+    { "type": "sound_mode", "title": "Enable Silent Mode (50 mins)", "parameters": { "mode": "silent", "durationMinutes": 50 } },
     { "type": "open_app", "title": "Open Timetable", "parameters": { "appName": "Timetable" } },
     { "type": "timer", "title": "Start 50 min timer", "parameters": { "durationMinutes": 50, "label": "College Class" } }
   ]
@@ -53,10 +53,10 @@ User: "When I start studying, enable Do Not Disturb and start 45 minute timer"
 JSON:
 {
   "name": "Study Session",
-  "description": "Turn on DND and start study timer",
+  "description": "Turn on DND for 45 minutes and start study timer",
   "trigger": { "type": "manual", "description": "Start study session", "parameters": {} },
   "actions": [
-    { "type": "sound_mode", "title": "Enable Do Not Disturb", "parameters": { "mode": "dnd" } },
+    { "type": "sound_mode", "title": "Enable Do Not Disturb (45 mins)", "parameters": { "mode": "dnd", "durationMinutes": 45 } },
     { "type": "timer", "title": "Start 45 min timer", "parameters": { "durationMinutes": 45, "label": "Study" } }
   ]
 }
@@ -238,8 +238,11 @@ Return ONLY valid JSON.`;
 
   private deriveActionTitle(type: string, params: Record<string, any>): string {
     switch (type) {
-      case 'sound_mode':
-        return `Set sound mode to ${params.mode || 'normal'}`;
+      case 'sound_mode': {
+        const modeStr = params.mode || 'normal';
+        const dur = params.durationMinutes ? ` (${params.durationMinutes} mins)` : '';
+        return `Set sound mode to ${modeStr}${dur}`;
+      }
       case 'open_app':
         return `Open ${params.appName || 'Application'}`;
       case 'timer':
@@ -262,6 +265,10 @@ Return ONLY valid JSON.`;
     const text = prompt.toLowerCase();
     const actions: WorkflowActionDto[] = [];
     let trigger: WorkflowTriggerDto | undefined;
+
+    // Detect duration if specified in prompt (e.g. 45 min, 45-minute, 50 minutes)
+    const timerMatch = text.match(/(\d+)\s*(?:-|–|\s)?(?:minute|min)/i);
+    const durationMinutes = timerMatch ? parseInt(timerMatch[1], 10) : undefined;
 
     // Trigger detection
     if (text.includes('reach') || text.includes('arrive') || text.includes('get to')) {
@@ -286,8 +293,8 @@ Return ONLY valid JSON.`;
       const { requiredPermissions, requiresConfirmation } = this.deriveSecurityAttributes('sound_mode', { mode: 'silent' });
       actions.push({
         type: 'sound_mode',
-        title: 'Enable Silent Mode',
-        parameters: { mode: 'silent' },
+        title: durationMinutes ? `Enable Silent Mode (${durationMinutes} mins)` : 'Enable Silent Mode',
+        parameters: { mode: 'silent', ...(durationMinutes ? { durationMinutes } : {}) },
         requiredPermissions,
         requiresConfirmation,
       });
@@ -295,8 +302,8 @@ Return ONLY valid JSON.`;
       const { requiredPermissions, requiresConfirmation } = this.deriveSecurityAttributes('sound_mode', { mode: 'dnd' });
       actions.push({
         type: 'sound_mode',
-        title: 'Enable Do Not Disturb',
-        parameters: { mode: 'dnd' },
+        title: durationMinutes ? `Enable Do Not Disturb (${durationMinutes} mins)` : 'Enable Do Not Disturb',
+        parameters: { mode: 'dnd', ...(durationMinutes ? { durationMinutes } : {}) },
         requiredPermissions,
         requiresConfirmation,
       });

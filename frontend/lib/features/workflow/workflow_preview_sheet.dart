@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/models/workflow_response.dart';
 import '../../core/models/workflow_action.dart';
+import '../../core/execution/native_executor.dart';
 import '../logs/ai_response_log_sheet.dart';
 
 class WorkflowPreviewSheet extends StatefulWidget {
@@ -20,10 +21,26 @@ class WorkflowPreviewSheet extends StatefulWidget {
 class _WorkflowPreviewSheetState extends State<WorkflowPreviewSheet> {
   bool _isExecuting = false;
   bool _isExecuted = false;
+  String _currentStepLabel = '';
 
   void _runWorkflow() async {
-    setState(() => _isExecuting = true);
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _isExecuting = true;
+      _currentStepLabel = 'Initializing actions...';
+    });
+
+    final actions = widget.workflowResponse.workflow.actions;
+    for (int i = 0; i < actions.length; i++) {
+      final action = actions[i];
+      if (mounted) {
+        setState(() {
+          _currentStepLabel = 'Running step ${i + 1}/${actions.length}: ${action.title}...';
+        });
+      }
+      await NativeExecutor.executeAction(action);
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+
     if (mounted) {
       setState(() {
         _isExecuting = false;
@@ -143,6 +160,35 @@ class _WorkflowPreviewSheetState extends State<WorkflowPreviewSheet> {
             ],
 
             const SizedBox(height: 20),
+
+            if (_isExecuting && _currentStepLabel.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _currentStepLabel,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             // Action Buttons
             if (_isExecuted) ...[

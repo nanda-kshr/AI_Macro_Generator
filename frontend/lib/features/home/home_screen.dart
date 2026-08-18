@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api/workflow_api_service.dart';
+import '../../core/config/api_config.dart';
 import '../../core/models/workflow_response.dart';
 import '../../core/models/workflow.dart';
 import '../workflow/workflow_preview_sheet.dart';
@@ -100,25 +101,87 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showServerSettingsDialog() {
+    final controller = TextEditingController(text: ApiConfig.defaultBaseUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.wifi, color: Colors.blueAccent),
+            SizedBox(width: 8),
+            Text('Server IP Config', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Backend API URL (phone & host machine on same Wi-Fi):',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                hintText: 'http://172.19.25.190:3001',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              ApiConfig.customBaseUrl = controller.text.trim();
+              Navigator.pop(ctx);
+              _loadProviders();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Updated backend URL to ${ApiConfig.defaultBaseUrl}')),
+              );
+            },
+            child: const Text('Save & Reconnect'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 12,
         title: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome, color: Colors.blueAccent),
-            SizedBox(width: 8),
-            Text(
-              'AI Macro Generator',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Icon(Icons.auto_awesome, color: Colors.blueAccent, size: 20),
+            SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'AI Macro',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
             ),
           ],
         ),
         actions: [
           _buildProviderDropdown(),
-          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.settings_ethernet, size: 18),
+            tooltip: 'Server IP Settings',
+            onPressed: _showServerSettingsDialog,
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SingleChildScrollView(
@@ -158,18 +221,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Model: ${_selectedProvider == 'ollama' ? 'gemma3:270m' : _selectedProvider}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Model: ${_selectedProvider == 'ollama' ? 'gemma3:270m' : _selectedProvider}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                      FilledButton.icon(
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
                         onPressed: _isLoading ? null : _generateMacro,
                         icon: _isLoading
                             ? const SizedBox(
@@ -315,15 +382,41 @@ class _HomeScreenState extends State<HomeScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedProvider,
-          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          icon: const Icon(Icons.arrow_drop_down, size: 16),
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.onSurface,
           ),
           onChanged: (val) {
             if (val != null) setState(() => _selectedProvider = val);
           },
+          selectedItemBuilder: (context) => [
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.memory, size: 13, color: Colors.teal),
+                SizedBox(width: 4),
+                Text('Ollama', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud, size: 13, color: Colors.blue),
+                SizedBox(width: 4),
+                Text('Gemini', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.hub, size: 13, color: Colors.orange),
+                SizedBox(width: 4),
+                Text('OpenRouter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
           items: const [
             DropdownMenuItem(
               value: 'ollama',

@@ -19,8 +19,8 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`Backend server running on http://localhost:${port}`);
+  const port = process.env.PORT ?? 3001;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Backend server running on http://0.0.0.0:${port} (LAN: http://172.19.25.190:${port})`);
 }
 bootstrap();
