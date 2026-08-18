@@ -1,27 +1,53 @@
 ---
 type: concept
 title: System Architecture & Design
-description: Architectural overview of AI Macro Generator across Flutter UI, core compilation pipeline, and Android services.
+description: Architectural overview of AI Macro Generator across NestJS multi-adapter backend, Flutter minimalist UI, and Android native execution channels.
 resource: https://github.com/nanda-kshr/AI_Macro_Generator
 tags:
   - architecture
+  - nestjs
   - flutter
   - android
-  - system-design
+  - llm-adapter
+  - okf
 timestamp: 2026-08-18
 ---
 
 # System Architecture & Design
 
-AI Macro Generator operates as a multi-tier compilation and execution system for mobile automation.
+AI Macro Generator operates as a multi-tier compilation, review, and native execution system for smartphone automation.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                   Flutter Frontend (UI)                  │
+│   - Minimalist Design System (Monochrome Slate / Dark)   │
+│   - Live In-App Timer Banner & Human-in-the-Loop Review  │
+│   - In-App AI Debug Inspector                            │
+└──────────────┬────────────────────────────▲──────────────┘
+               │ HTTP / JSON                │ Platform Channel
+               ▼                            ▼
+┌──────────────────────────────┐ ┌───────────────────────────┐
+│       NestJS Backend         │ │   Android Native Execution│
+│ - Multi-LLM Adapter Layer    │ │ - DND / Sound Manager     │
+│   (Ollama, Gemini, OpenRouter)│ │ - Timed DND Auto-Reset    │
+│ - Schema Sanitizer & Fallback│ │ - Background Timer & Notif│
+│ - Persistent AI Response Log │ │ - App Launcher Intents    │
+└──────────────────────────────┘ └───────────────────────────┘
+```
 
 ## Layered Architecture
 
-1. **Presentation (UI Layer)**: Flutter interface for natural language prompt entry, workflow review, and execution feedback.
-2. **Domain / Compiler Layer**: Intent parsing, IR generation, and rule-based validation.
-3. **Execution / Native Layer**: Method channels and platform integration with Android system automation hooks.
+1. **Presentation Layer (Flutter)**:
+   - Minimalist, typography-first user interface.
+   - Live in-app countdown banner and state management.
+   - Provider switcher (`ollama`, `gemini`, `openrouter`).
+   - In-app raw AI debug inspector.
 
-## Platform Integration
+2. **Compiler & Adapter Layer (NestJS Backend)**:
+   - Pluggable adapter interface (`ILlmAdapter`) supporting local Ollama (`gemma3:270m`), Google Gemini, and OpenRouter.
+   - JSON extraction, markdown-fence sanitizer, and heuristic fallback parsing.
+   - File-based (`backend/logs/ai_responses.log`) and console debug logging.
 
-- **Android**: Method channels for invoking device actions (settings, apps, timers, notifications).
-- **Core Dart**: Pure logic decoupled from platform-specific APIs.
+3. **Native Execution Layer (Android Kotlin)**:
+   - Flutter `MethodChannel` (`com.example.ai_macro_generator/execution`).
+   - `MainActivity.kt` handles hardware sound modes, DND policy filters, timed state auto-reversion, and system app launching.

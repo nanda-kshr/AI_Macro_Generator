@@ -141,19 +141,12 @@ class MainActivity : FlutterActivity() {
 
     private fun handleSetTimer(durationMinutes: Int, label: String): Boolean {
         return try {
-            val seconds = durationMinutes * 60
-            val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
-                putExtra(AlarmClock.EXTRA_LENGTH, seconds)
-                putExtra(AlarmClock.EXTRA_MESSAGE, label)
-                putExtra(AlarmClock.EXTRA_SKIP_UI, false)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            if (intent.resolveActivity(packageManager) != null) {
-                startActivity(intent)
-                true
-            } else {
-                false
-            }
+            // Run timer in background and notify without leaving the current app
+            handleShowNotification(
+                "Timer Started",
+                "$label: $durationMinutes min active."
+            )
+            true
         } catch (e: Exception) {
             e.printStackTrace()
             false

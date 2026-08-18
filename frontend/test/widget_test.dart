@@ -7,9 +7,9 @@ void main() {
   testWidgets('App renders Home Screen title and prompt input', (WidgetTester tester) async {
     await tester.pumpWidget(const AiMacroApp());
 
-    expect(find.text('AI Macro'), findsOneWidget);
-    expect(find.text('Generate Macro'), findsOneWidget);
-    expect(find.text('Example Prompts:'), findsOneWidget);
+    expect(find.text('Macros'), findsOneWidget);
+    expect(find.text('Generate'), findsOneWidget);
+    expect(find.text('Suggestions'), findsOneWidget);
   });
 
   test('Workflow JSON deserialization works correctly', () {

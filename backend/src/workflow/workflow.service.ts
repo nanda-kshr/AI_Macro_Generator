@@ -3,6 +3,8 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import { LlmService } from '../llm/llm.service';
 import { GenerateWorkflowDto } from './dto/generate-workflow.dto';
 import {
@@ -20,11 +22,26 @@ export class WorkflowService {
   private readonly logger = new Logger(WorkflowService.name);
   private readonly recentLogs: ExecutionLogEntry[] = [];
   private readonly maxLogs = 50;
+  private readonly logDir = path.join(process.cwd(), 'logs');
+  private readonly logFilePath = path.join(process.cwd(), 'logs', 'ai_responses.log');
 
-  constructor(private readonly llmService: LlmService) {}
+  constructor(private readonly llmService: LlmService) {
+    try {
+      if (!fs.existsSync(this.logDir)) {
+        fs.mkdirSync(this.logDir, { recursive: true });
+      }
+    } catch (_) {}
+  }
 
   private readonly systemPrompt = `You are an AI Smartphone Macro & Automation Planner.
 Convert the user natural language command into a single JSON object with "name", "description", "trigger", and "actions".
+
+ALLOWED TRIGGER TYPES:
+- "manual": {} (Instant execution / User action)
+- "time": { "time": "08:00", "days": ["Monday", "Tuesday"] }
+- "wifi": { "ssid": "<WiFi network name>" } (Connected to specific Wi-Fi)
+- "charging": { "state": "plugged_in" | "unplugged" }
+- "app_open": { "appName": "<name>" }
 
 ALLOWED ACTION TYPES:
 - "sound_mode": { "mode": "silent" | "vibrate" | "normal" | "dnd", "durationMinutes"?: <number> }
@@ -35,16 +52,15 @@ ALLOWED ACTION TYPES:
 - "calendar_view": { "date": "today" }
 
 EXAMPLE:
-User: "When I reach college, turn on silent mode, open timetable, and start 50 minute timer"
+User: "When connected to College-WiFi, turn on silent mode and open Timetable"
 JSON:
 {
-  "name": "College Arrival Routine",
-  "description": "Enable silent mode, open timetable and start 50 minute timer on arriving at college",
-  "trigger": { "type": "location", "description": "Arrive at College", "parameters": { "location": "College", "event": "arrival" } },
+  "name": "College Wi-Fi Routine",
+  "description": "Enable silent mode and open timetable when connected to College-WiFi",
+  "trigger": { "type": "wifi", "description": "Connected to College-WiFi", "parameters": { "ssid": "College-WiFi" } },
   "actions": [
-    { "type": "sound_mode", "title": "Enable Silent Mode (50 mins)", "parameters": { "mode": "silent", "durationMinutes": 50 } },
-    { "type": "open_app", "title": "Open Timetable", "parameters": { "appName": "Timetable" } },
-    { "type": "timer", "title": "Start 50 min timer", "parameters": { "durationMinutes": 50, "label": "College Class" } }
+    { "type": "sound_mode", "title": "Enable Silent Mode", "parameters": { "mode": "silent" } },
+    { "type": "open_app", "title": "Open Timetable", "parameters": { "appName": "Timetable" } }
   ]
 }
 
@@ -61,12 +77,34 @@ JSON:
   ]
 }
 
+EXAMPLE 3:
+User: "When phone is charging at night, enable Do Not Disturb and set a reminder to wake up early"
+JSON:
+{
+  "name": "Bedtime Charging Routine",
+  "description": "Enable DND and set reminder when plugged in",
+  "trigger": { "type": "charging", "description": "Phone plugged in / charging", "parameters": { "state": "plugged_in" } },
+  "actions": [
+    { "type": "sound_mode", "title": "Enable Do Not Disturb", "parameters": { "mode": "dnd" } },
+    { "type": "notification", "title": "Wake Up Reminder", "parameters": { "title": "Alarm", "message": "Wake up early for classes" } }
+  ]
+}
+
 Return ONLY valid JSON.`;
 
   private logEntry(entry: ExecutionLogEntry) {
     this.recentLogs.unshift(entry);
     if (this.recentLogs.length > this.maxLogs) {
       this.recentLogs.pop();
+    }
+  }
+
+  private writeLogToFile(entry: ExecutionLogEntry) {
+    try {
+      const line = JSON.stringify(entry) + '\n';
+      fs.appendFileSync(this.logFilePath, line, 'utf8');
+    } catch (err: any) {
+      this.logger.warn(`Failed to write log to file: ${err.message}`);
     }
   }
 
@@ -115,7 +153,7 @@ Return ONLY valid JSON.`;
         timestamp: new Date().toISOString(),
       };
 
-      this.logEntry({
+      const logRecord: ExecutionLogEntry = {
         id: logId,
         timestamp: debug.timestamp,
         prompt: dto.prompt,
@@ -124,7 +162,20 @@ Return ONLY valid JSON.`;
         durationMs,
         rawResponse,
         parsedWorkflow: workflow,
-      });
+      };
+
+      this.logEntry(logRecord);
+      this.writeLogToFile(logRecord);
+
+      // Print visible terminal debug banner
+      console.log(`\n=================== [AI RESPONSE DEBUG LOG] ===================`);
+      console.log(`[ID]        : ${logId}`);
+      console.log(`[PROMPT]    : "${dto.prompt}"`);
+      console.log(`[PROVIDER]  : ${llmResult.provider} (model: ${modelUsed})`);
+      console.log(`[LATENCY]   : ${durationMs} ms`);
+      console.log(`[RAW OUTPUT]:\n${rawResponse}`);
+      console.log(`[PARSED IR] :\n${JSON.stringify(workflow, null, 2)}`);
+      console.log(`===============================================================\n`);
 
       return {
         success: true,
@@ -270,14 +321,28 @@ Return ONLY valid JSON.`;
     const timerMatch = text.match(/(\d+)\s*(?:-|–|\s)?(?:minute|min)/i);
     const durationMinutes = timerMatch ? parseInt(timerMatch[1], 10) : undefined;
 
-    // Trigger detection
-    if (text.includes('reach') || text.includes('arrive') || text.includes('get to')) {
-      const locMatch = text.match(/(?:reach|arrive at|get to|get)\s+([a-zA-Z0-9\s]+?)(?:,|$|\s+turn|\s+open|\s+enable|\s+start|\s+set)/i);
-      const loc = locMatch ? locMatch[1].trim() : 'Destination';
+    // Trigger detection: Wi-Fi, Charging, Time, App Open, or Manual
+    if (text.includes('wifi') || text.includes('wi-fi') || text.includes('connected to')) {
+      const wifiMatch = text.match(/(?:connected to|on)\s+([a-zA-Z0-9_\-\s]+?)(?:,|$|\s+turn|\s+open|\s+enable|\s+set)/i);
+      const ssid = wifiMatch ? wifiMatch[1].trim() : 'Campus-WiFi';
       trigger = {
-        type: 'location',
-        description: `Arrive at ${loc}`,
-        parameters: { location: loc, event: 'arrival' },
+        type: 'wifi',
+        description: `Connected to "${ssid}"`,
+        parameters: { ssid },
+      };
+    } else if (text.includes('charging') || text.includes('plugged in')) {
+      trigger = {
+        type: 'charging',
+        description: 'Phone plugged in & charging',
+        parameters: { state: 'plugged_in' },
+      };
+    } else if (text.includes('when') && text.includes('opens')) {
+      const appMatch = text.match(/when\s+([a-zA-Z0-9\s]+?)\s+opens/i);
+      const app = appMatch ? appMatch[1].trim() : 'App';
+      trigger = {
+        type: 'app_open',
+        description: `When ${app} is opened`,
+        parameters: { appName: app },
       };
     } else if (text.includes('at') && (text.includes('am') || text.includes('pm') || text.includes(':'))) {
       const timeMatch = text.match(/at\s+(\d+(?::\d+)?\s*(?:am|pm)?)/i);
@@ -285,6 +350,12 @@ Return ONLY valid JSON.`;
         type: 'time',
         description: `Every day at ${timeMatch ? timeMatch[1] : 'scheduled time'}`,
         parameters: { time: timeMatch ? timeMatch[1] : '08:00' },
+      };
+    } else {
+      trigger = {
+        type: 'manual',
+        description: 'Instant Intent Action',
+        parameters: {},
       };
     }
 

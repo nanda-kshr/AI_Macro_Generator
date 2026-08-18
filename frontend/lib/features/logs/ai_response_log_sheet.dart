@@ -8,9 +8,11 @@ class AiResponseLogSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? const Color(0xFF161922) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.all(20),
@@ -21,46 +23,35 @@ class AiResponseLogSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.terminal, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'AI Response Inspector',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              const Text(
+                'AI Response',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3),
               ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded, size: 18),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          const SizedBox(height: 8),
+          Row(
             children: [
-              _buildBadge(context, 'Provider: ${debugInfo.provider.toUpperCase()}', Icons.cloud),
-              _buildBadge(context, 'Model: ${debugInfo.model}', Icons.memory),
-              _buildBadge(context, 'Latency: ${debugInfo.durationMs}ms', Icons.speed),
+              _buildBadge(context, '${debugInfo.provider} (${debugInfo.model})', isDark),
+              const SizedBox(width: 8),
+              _buildBadge(context, '${debugInfo.durationMs}ms', isDark),
             ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Raw LLM Output:',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
           Flexible(
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: isDark ? const Color(0xFF0F1117) : const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF262C3A) : const Color(0xFFE5E7EB),
+                ),
               ),
               child: SingleChildScrollView(
                 child: SelectableText(
@@ -79,27 +70,20 @@ class AiResponseLogSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildBadge(BuildContext context, String label, IconData icon) {
+  Widget _buildBadge(BuildContext context, String label, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(8),
+        color: isDark ? const Color(0xFF222734) : const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Theme.of(context).colorScheme.onPrimaryContainer),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
