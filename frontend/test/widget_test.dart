@@ -1,30 +1,65 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:ai_macro_generator/main.dart';
+import 'package:ai_macro_generator/core/models/workflow.dart';
+import 'package:ai_macro_generator/core/models/workflow_response.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App renders Home Screen title and prompt input', (WidgetTester tester) async {
+    await tester.pumpWidget(const AiMacroApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('AI Macro Generator'), findsOneWidget);
+    expect(find.text('Generate Macro'), findsOneWidget);
+    expect(find.text('Example Prompts:'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('Workflow JSON deserialization works correctly', () {
+    final json = {
+      'success': true,
+      'workflow': {
+        'id': 'test_123',
+        'name': 'Study Mode',
+        'description': 'Enable DND and set timer',
+        'trigger': {
+          'type': 'location',
+          'description': 'Arrived at Library',
+          'parameters': {'location': 'Library'},
+        },
+        'actions': [
+          {
+            'type': 'sound_mode',
+            'title': 'Enable DND',
+            'parameters': {'mode': 'dnd'},
+            'requiredPermissions': ['android.permission.ACCESS_NOTIFICATION_POLICY'],
+          },
+          {
+            'type': 'timer',
+            'title': '45 min Timer',
+            'parameters': {'durationMinutes': 45},
+          }
+        ],
+        'createdAt': '2026-08-18T12:00:00Z',
+      },
+      'validation': {
+        'isValid': true,
+        'warnings': [],
+        'missingPermissions': ['android.permission.ACCESS_NOTIFICATION_POLICY'],
+        'highRiskActions': [],
+      },
+      'debug': {
+        'provider': 'ollama',
+        'model': 'gemma3:270m',
+        'durationMs': 150,
+        'rawResponse': '{}',
+        'timestamp': '2026-08-18T12:00:00Z',
+      }
+    };
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final response = WorkflowResponse.fromJson(json);
+    expect(response.success, true);
+    expect(response.workflow.name, 'Study Mode');
+    expect(response.workflow.actions.length, 2);
+    expect(response.workflow.actions[0].type, 'sound_mode');
+    expect(response.debug.provider, 'ollama');
+    expect(response.debug.model, 'gemma3:270m');
   });
 }
